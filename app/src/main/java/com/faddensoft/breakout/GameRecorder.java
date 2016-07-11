@@ -16,7 +16,6 @@
 
 package com.faddensoft.breakout;
 
-import android.content.Context;
 import android.media.MediaCodec;
 import android.media.MediaCodecInfo;
 import android.media.MediaFormat;
@@ -62,6 +61,15 @@ public class GameRecorder {
     private int mViewportXoff, mViewportYoff;
     private final float mProjectionMatrix[] = new float[16];
 
+    interface OnFinishWriting {
+        void onFinishWriting(File file);
+    }
+
+    private OnFinishWriting onFinishWritingListener;
+
+    public void setOnFinishWritingListener(OnFinishWriting onFinishWritingListener) {
+        this.onFinishWritingListener = onFinishWritingListener;
+    }
 
     /** singleton */
     private GameRecorder() {}
@@ -86,7 +94,7 @@ public class GameRecorder {
      * We can't set up the InputSurface yet, because we want the EGL contexts to share stuff,
      * and the primary context may not have been configured yet.
      */
-    public void prepareEncoder(Context context) {
+    public void prepareEncoder(File fileToSave) {
         MediaCodec encoder;
         MediaMuxer muxer;
 
@@ -94,7 +102,8 @@ public class GameRecorder {
             throw new RuntimeException("prepareEncoder called twice?");
         }
 
-        mOutputFile = new File(context.getFilesDir(), "video.mp4");
+        mOutputFile = fileToSave;
+
         Log.d(TAG, "Video recording to file " + mOutputFile);
         mBufferInfo = new MediaCodec.BufferInfo();
 
@@ -339,5 +348,9 @@ public class GameRecorder {
 
         drainEncoder(true);
         releaseEncoder();
+
+        if (onFinishWritingListener != null) {
+            onFinishWritingListener.onFinishWriting(mOutputFile);
+        }
     }
 }

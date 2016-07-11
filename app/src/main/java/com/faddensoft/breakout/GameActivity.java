@@ -17,9 +17,14 @@
 package com.faddensoft.breakout;
 
 import android.app.Activity;
+import android.content.ContentValues;
 import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.os.Environment;
+import android.provider.MediaStore;
 import android.util.Log;
+
+import java.io.File;
 
 /**
  * Activity for the actual game.  This is largely just a wrapper for our GLSurfaceView.
@@ -58,7 +63,26 @@ public class GameActivity extends Activity {
 
         // Initialize data that depends on Android resources.
         SoundResources.initialize(this);
-        GameRecorder.getInstance().prepareEncoder(this);
+
+        File movieDir = getApplicationContext().getExternalFilesDir(Environment.DIRECTORY_MOVIES);
+        File fileToSaveMovie = new File(movieDir.getAbsolutePath() + File.separator + System.currentTimeMillis() + ".mp4");
+        GameRecorder recorder = GameRecorder.getInstance();
+        recorder.prepareEncoder(fileToSaveMovie);
+        recorder.setOnFinishWritingListener(new GameRecorder.OnFinishWriting() {
+            @Override
+            public void onFinishWriting(File file) {
+                // 端末のギャラリー設定に登録
+                ContentValues values = new ContentValues(5);
+                values.put(MediaStore.Video.Media.TITLE, "game movie");
+                values.put(MediaStore.Video.Media.DISPLAY_NAME, "game movie");
+                values.put(MediaStore.Video.Media.DATE_TAKEN, System.currentTimeMillis());
+                values.put(MediaStore.Video.Media.MIME_TYPE, "video/mp4");
+                values.put(MediaStore.Video.Media.DATA, file.getAbsolutePath());
+                getApplicationContext().getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
+            }
+        });
+
+
         TextResources.Configuration textConfig = TextResources.configure(this);
 
         mGameState = new GameState();
