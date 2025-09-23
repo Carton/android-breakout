@@ -196,6 +196,11 @@ public class GameState {
     private int mLiveBrickCount;
 
     /*
+     * Active brick list for optimized collision detection. Only contains bricks that are alive.
+     */
+    private Brick[] mActiveBricks;
+
+    /*
      * The paddle.  The width of the paddle is configurable based on skill level.
      */
     private static final int DEFAULT_PADDLE_WIDTH =
@@ -596,6 +601,27 @@ public class GameState {
 
 
         mLiveBrickCount = mBricks.length;
+
+        // Initialize active bricks list
+        mActiveBricks = new Brick[mBricks.length];
+        for (int i = 0; i < mBricks.length; i++) {
+            mActiveBricks[i] = mBricks[i];
+        }
+    }
+
+    /**
+     * Updates the active bricks list after a brick is destroyed.
+     * This maintains the optimization for collision detection.
+     */
+    private void updateActiveBricksList() {
+        // Only rebuild the list when necessary (when bricks are destroyed)
+        int activeCount = 0;
+        for (int i = 0; i < mBricks.length; i++) {
+            if (mBricks[i].isAlive()) {
+                mActiveBricks[activeCount++] = mBricks[i];
+            }
+        }
+        // Keep the rest as null to avoid unnecessary iterations
     }
 
     /**
@@ -1248,11 +1274,11 @@ public class GameState {
 
             int hits = 0;
 
-            // test bricks
+            // test bricks - use optimized active bricks list
             for (int i = 0; i < mBricks.length; i++) {
-                if (mBricks[i].isAlive() &&
-                        checkCoarseCollision(mBricks[i], left, right, bottom, top)) {
-                    mPossibleCollisions[hits++] = mBricks[i];
+                Brick brick = mActiveBricks[i];
+                if (brick != null && checkCoarseCollision(brick, left, right, bottom, top)) {
+                    mPossibleCollisions[hits++] = brick;
                 }
             }
 
@@ -1350,6 +1376,10 @@ public class GameState {
                         brick.setAlive(false);
                         mLiveBrickCount--;
                         mScore += brick.getScoreValue() * mScoreMultiplier;
+
+                        // Update active bricks list for optimized collision detection
+                        updateActiveBricksList();
+
                         if (mLiveBrickCount == 0) {
                             Log.d(TAG, "*** won ***");
                             event = EVENT_LAST_BRICK;

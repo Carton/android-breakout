@@ -26,6 +26,7 @@ import android.opengl.Matrix;
 import android.os.ConditionVariable;
 import android.os.Trace;
 import android.util.Log;
+import com.faddensoft.breakout.BuildConfig;
 
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
@@ -86,7 +87,10 @@ public class GameSurfaceRenderer implements GLSurfaceView.Renderer {
      */
     @Override
     public void onSurfaceCreated(GL10 unused, EGLConfig config) {
-        if (EXTRA_CHECK) Util.checkGlError("onSurfaceCreated start");
+        // Only check GL errors in debug builds to improve performance
+        if (BuildConfig.DEBUG || EXTRA_CHECK) {
+            Util.checkGlError("onSurfaceCreated start");
+        }
 
         // Allocate objects associated with the various graphical elements.
         GameState gameState = mGameState;
@@ -121,7 +125,10 @@ public class GameSurfaceRenderer implements GLSurfaceView.Renderer {
             mFrameCount = 0;
         }
 
-        if (EXTRA_CHECK) Util.checkGlError("onSurfaceCreated end");
+        // Only check GL errors in debug builds to improve performance
+        if (BuildConfig.DEBUG || EXTRA_CHECK) {
+            Util.checkGlError("onSurfaceCreated end");
+        }
     }
 
     /**
@@ -173,7 +180,10 @@ public class GameSurfaceRenderer implements GLSurfaceView.Renderer {
          * on devices that don't rotate easily (e.g. plasma TVs).
          */
 
-        if (EXTRA_CHECK) Util.checkGlError("onSurfaceChanged start");
+        // Only check GL errors in debug builds to improve performance
+        if (BuildConfig.DEBUG || EXTRA_CHECK) {
+            Util.checkGlError("onSurfaceChanged start");
+        }
 
         float arenaRatio = GameState.ARENA_HEIGHT / GameState.ARENA_WIDTH;
         int x, y, viewWidth, viewHeight;
@@ -210,7 +220,10 @@ public class GameSurfaceRenderer implements GLSurfaceView.Renderer {
         // Nudge game state after the surface change.
         mGameState.surfaceChanged();
 
-        if (EXTRA_CHECK) Util.checkGlError("onSurfaceChanged end");
+        // Only check GL errors in debug builds to improve performance
+        if (BuildConfig.DEBUG || EXTRA_CHECK) {
+            Util.checkGlError("onSurfaceChanged end");
+        }
     }
 
     /**
@@ -292,7 +305,10 @@ public class GameSurfaceRenderer implements GLSurfaceView.Renderer {
     private void drawFrame() {
         GameState gameState = mGameState;
 
-        if (EXTRA_CHECK) Util.checkGlError("onDrawFrame start");
+        // Only check GL errors in debug builds to improve performance
+        if (BuildConfig.DEBUG || EXTRA_CHECK) {
+            Util.checkGlError("onDrawFrame start");
+        }
 
         Trace.beginSection("render frame");
         // Clear entire screen to background color.
@@ -350,7 +366,15 @@ public class GameSurfaceRenderer implements GLSurfaceView.Renderer {
         GLES20.glDisable(GLES20.GL_BLEND);
         Trace.endSection();
 
-        if (EXTRA_CHECK) Util.checkGlError("onDrawFrame end");
+        // Only check GL errors in debug builds to improve performance
+        if (BuildConfig.DEBUG || EXTRA_CHECK) {
+            Util.checkGlError("onDrawFrame end");
+        }
+
+        // Cleanup resources periodically to prevent memory leaks
+        if (mFrameCount % Util.GameConfig.RESOURCE_CLEANUP_INTERVAL == 0) {
+            Util.ResourceManager.cleanup();
+        }
 
     }
 

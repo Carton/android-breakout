@@ -60,6 +60,9 @@ public class Util {
                 width, height, /*border*/ 0, format, GLES20.GL_UNSIGNED_BYTE, data);
         Util.checkGlError("loadImageTexture");
 
+        // Register texture for cleanup to prevent memory leaks
+        ResourceManager.registerTexture(textureHandle);
+
         return textureHandle;
     }
 
@@ -121,6 +124,9 @@ public class Util {
             throw new RuntimeException("glLinkProgram failed");
         }
 
+        // Register program for cleanup to prevent memory leaks
+        ResourceManager.registerProgram(programHandle);
+
         return programHandle;
     }
 
@@ -132,20 +138,133 @@ public class Util {
      * mColorHandle = GLES20.glGetUniformLocation(mProgram, "vColor");
      * MyGLRenderer.checkGlError("glGetUniformLocation");</pre>
      *
-     * If an error was detected, this will throw an exception.
+     * If an error was detected, this will throw an exception with detailed information.
      *
      * @param msg string to display in the error message (usually the name of the last
      *      GL operation)
      */
     public static void checkGlError(String msg) {
         int error, lastError = GLES20.GL_NO_ERROR;
+        int errorCount = 0;
 
         while ((error = GLES20.glGetError()) != GLES20.GL_NO_ERROR) {
-            Log.e(TAG, msg + ": glError " + error);
+            errorCount++;
+            String errorName = getGlErrorName(error);
+            Log.e(TAG, msg + ": OpenGL error #" + errorCount + " - " + errorName + " (0x" +
+                    Integer.toHexString(error) + ")");
             lastError = error;
         }
+
         if (lastError != GLES20.GL_NO_ERROR) {
-            throw new RuntimeException(msg + ": glError " + lastError);
+            String errorName = getGlErrorName(lastError);
+            throw new RuntimeException("OpenGL Error in " + msg + ": " + errorName +
+                    " (0x" + Integer.toHexString(lastError) + ")");
+        }
+    }
+
+    /**
+     * Get a human-readable name for OpenGL error codes.
+     */
+    private static String getGlErrorName(int error) {
+        switch (error) {
+            case GLES20.GL_INVALID_ENUM:
+                return "GL_INVALID_ENUM";
+            case GLES20.GL_INVALID_VALUE:
+                return "GL_INVALID_VALUE";
+            case GLES20.GL_INVALID_OPERATION:
+                return "GL_INVALID_OPERATION";
+            case GLES20.GL_OUT_OF_MEMORY:
+                return "GL_OUT_OF_MEMORY";
+            case GLES20.GL_INVALID_FRAMEBUFFER_OPERATION:
+                return "GL_INVALID_FRAMEBUFFER_OPERATION";
+            default:
+                return "UNKNOWN_ERROR";
+        }
+    }
+
+    /**
+     * Game configuration constants. Extracted from GameState to improve maintainability.
+     */
+    public static class GameConfig {
+        // Arena dimensions
+        public static final float ARENA_WIDTH = 768.0f;
+        public static final float ARENA_HEIGHT = 1024.0f;
+
+        // Brick layout
+        public static final float BRICK_TOP_PERC = 85 / 100.0f;
+        public static final float BRICK_BOTTOM_PERC = 43 / 100.0f;
+        public static final float BORDER_WIDTH_PERC = 2 / 100.0f;
+        public static final int BRICK_COLUMNS = 12;
+        public static final int BRICK_ROWS = 8;
+
+        // Gaps between bricks
+        public static final float BRICK_HORIZONTAL_GAP_PERC = 20 / 100.0f;
+        public static final float BRICK_VERTICAL_GAP_PERC = 50 / 100.0f;
+
+        // Paddle settings
+        public static final float PADDLE_VERTICAL_PERC = 12 / 100.0f;
+        public static final float PADDLE_HEIGHT_PERC = 1 / 100.0f;
+        public static final float PADDLE_WIDTH_PERC = 2 / 100.0f;
+        public static final int PADDLE_DEFAULT_WIDTH = 6;
+
+        // Ball settings
+        public static final float BALL_WIDTH_PERC = 2.5f / 100.0f;
+
+        // Score display
+        public static final float SCORE_TOP_PERC = 5 / 100.0f;
+
+        // Performance tuning
+        public static final int RESOURCE_CLEANUP_INTERVAL = 300; // frames
+        public static final float DEFAULT_BALL_DIAMETER = 16.0f;
+    }
+
+    /**
+     * Simple resource manager to help prevent memory leaks.
+     * Tracks and cleans up OpenGL resources properly.
+     */
+    public static class ResourceManager {
+        private static final java.util.List<Integer> sTextures = new java.util.ArrayList<>();
+        private static final java.util.List<Integer> sPrograms = new java.util.ArrayList<>();
+
+        /**
+         * Register a texture for cleanup.
+         */
+        public static void registerTexture(int textureHandle) {
+            if (textureHandle != 0) {
+                sTextures.add(textureHandle);
+            }
+        }
+
+        /**
+         * Register a program for cleanup.
+         */
+        public static void registerProgram(int programHandle) {
+            if (programHandle != 0) {
+                sPrograms.add(programHandle);
+            }
+        }
+
+        /**
+         * Clean up all registered resources.
+         */
+        public static void cleanup() {
+            int[] textures = new int[sTextures.size()];
+            for (int i = 0; i < sTextures.size(); i++) {
+                textures[i] = sTextures.get(i);
+            }
+            if (textures.length > 0) {
+                GLES20.glDeleteTextures(textures.length, textures, 0);
+                sTextures.clear();
+            }
+
+            int[] programs = new int[sPrograms.size()];
+            for (int i = 0; i < sPrograms.size(); i++) {
+                programs[i] = sPrograms.get(i);
+            }
+            if (programs.length > 0) {
+                GLES20.glDeleteProgram(programs.length, programs, 0);
+                sPrograms.clear();
+            }
         }
     }
 }
